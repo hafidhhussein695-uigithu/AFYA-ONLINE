@@ -1,0 +1,595 @@
+<!doctype html>
+<html lang="en">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Solar System Explorer</title>
+  <script src="/_sdk/element_sdk.js"></script>
+  <style>
+    body {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      overflow: hidden;
+      height: 100%;
+      width: 100%;
+    }
+    
+    html {
+      height: 100%;
+      width: 100%;
+    }
+    
+    #app-container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      background: radial-gradient(ellipse at center, #1a1a2e 0%, #0a0a0f 100%);
+    }
+    
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+    
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+    
+    #ui-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+    
+    #header {
+      padding: 20px;
+      pointer-events: auto;
+    }
+    
+    #title {
+      font-size: 32px;
+      font-weight: bold;
+      color: #ffffff;
+      margin: 0;
+      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+    }
+    
+    #subtitle {
+      font-size: 16px;
+      color: #a0a0ff;
+      margin: 5px 0 0 0;
+      text-shadow: 0 1px 5px rgba(0, 0, 0, 0.5);
+    }
+    
+    #controls {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 10px;
+      pointer-events: auto;
+      background: rgba(20, 20, 40, 0.8);
+      padding: 15px 20px;
+      border-radius: 50px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+    
+    .control-btn {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 25px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 10px rgba(102, 126, 234, 0.3);
+    }
+    
+    .control-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.5);
+    }
+    
+    .control-btn.active {
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+    
+    #info-panel {
+      position: absolute;
+      top: 120px;
+      right: 20px;
+      width: 300px;
+      background: rgba(20, 20, 40, 0.9);
+      padding: 20px;
+      border-radius: 15px;
+      color: white;
+      pointer-events: auto;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      max-height: 70%;
+      overflow-y: auto;
+    }
+    
+    #info-panel h3 {
+      margin: 0 0 10px 0;
+      font-size: 20px;
+      color: #a0a0ff;
+    }
+    
+    #info-panel p {
+      margin: 8px 0;
+      font-size: 14px;
+      line-height: 1.6;
+      color: #e0e0e0;
+    }
+    
+    .info-label {
+      color: #a0a0ff;
+      font-weight: 600;
+      margin-right: 5px;
+    }
+    
+    #speed-control {
+      position: absolute;
+      top: 120px;
+      left: 20px;
+      background: rgba(20, 20, 40, 0.9);
+      padding: 15px 20px;
+      border-radius: 15px;
+      color: white;
+      pointer-events: auto;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+    
+    #speed-control label {
+      display: block;
+      margin-bottom: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #a0a0ff;
+    }
+    
+    #speed-slider {
+      width: 150px;
+      cursor: pointer;
+    }
+    
+    #speed-value {
+      display: inline-block;
+      margin-left: 10px;
+      font-size: 14px;
+      color: #e0e0e0;
+    }
+    
+    .star {
+      position: absolute;
+      background: white;
+      border-radius: 50%;
+      animation: twinkle 3s infinite;
+    }
+    
+    @keyframes twinkle {
+      0%, 100% { opacity: 0.3; }
+      50% { opacity: 1; }
+    }
+  </style>
+  <style>@view-transition { navigation: auto; }</style>
+  <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
+  <script src="https://cdn.tailwindcss.com" type="text/javascript"></script>
+ </head>
+ <body>
+  <div id="app-container">
+   <div id="canvas-container">
+    <canvas id="space-canvas"></canvas>
+   </div>
+   <div id="ui-overlay">
+    <div id="header">
+     <h1 id="title">Solar System Explorer</h1>
+     <p id="subtitle">Interactive 3D Space Exploration</p>
+    </div>
+    <div id="controls"><button class="control-btn active" data-body="earth">Earth</button> <button class="control-btn" data-body="moon">Moon</button> <button class="control-btn" data-body="mars">Mars</button> <button class="control-btn" id="pause-btn">⏸ Pause</button>
+    </div>
+    <div id="speed-control"><label for="speed-slider">Orbital Speed</label> <input type="range" id="speed-slider" min="0.1" max="5" step="0.1" value="1"> <span id="speed-value">1.0x</span>
+    </div>
+    <div id="info-panel">
+     <h3 id="body-name">Earth</h3>
+     <p id="body-description">Our home planet, the third from the Sun</p>
+     <p><span class="info-label">Distance from Sun:</span><span id="distance">149.6 million km</span></p>
+     <p><span class="info-label">Orbital Period:</span><span id="period">365.25 days</span></p>
+     <p><span class="info-label">Diameter:</span><span id="diameter">12,742 km</span></p>
+     <p><span class="info-label">Current Speed:</span><span id="speed">29.78 km/s</span></p>
+     <p><span class="info-label">Orbital Progress:</span><span id="progress">0°</span></p>
+    </div>
+   </div>
+  </div>
+  <script>
+    const defaultConfig = {
+      background_color: "#0a0a0f",
+      primary_color: "#667eea",
+      secondary_color: "#1a1a2e",
+      text_color: "#ffffff",
+      accent_color: "#a0a0ff",
+      title_text: "Solar System Explorer",
+      subtitle_text: "Interactive 3D Space Exploration",
+      earth_info: "Our home planet, the third from the Sun",
+      moon_info: "Earth's natural satellite, orbiting at 384,400 km",
+      mars_info: "The Red Planet, fourth from the Sun",
+      font_family: "Segoe UI",
+      font_size: 16
+    };
+
+    const canvas = document.getElementById('space-canvas');
+    const ctx = canvas.getContext('2d');
+    
+    let animationId;
+    let isPaused = false;
+    let timeScale = 1;
+    let selectedBody = 'earth';
+    let angle = 0;
+    
+    const celestialBodies = {
+      sun: {
+        x: 0,
+        y: 0,
+        radius: 30,
+        color: '#FDB813',
+        name: 'Sun'
+      },
+      earth: {
+        distance: 200,
+        radius: 12,
+        color: '#4A90E2',
+        angle: 0,
+        speed: 0.01,
+        name: 'Earth',
+        description: defaultConfig.earth_info,
+        realDistance: '149.6 million km',
+        period: '365.25 days',
+        diameter: '12,742 km',
+        orbitalSpeed: '29.78 km/s'
+      },
+      moon: {
+        distance: 40,
+        radius: 4,
+        color: '#CCCCCC',
+        angle: 0,
+        speed: 0.04,
+        name: 'Moon',
+        parent: 'earth',
+        description: defaultConfig.moon_info,
+        realDistance: '384,400 km from Earth',
+        period: '27.3 days',
+        diameter: '3,474 km',
+        orbitalSpeed: '1.02 km/s'
+      },
+      mars: {
+        distance: 300,
+        radius: 10,
+        color: '#E27B58',
+        angle: Math.PI,
+        speed: 0.008,
+        name: 'Mars',
+        description: defaultConfig.mars_info,
+        realDistance: '227.9 million km',
+        period: '687 days',
+        diameter: '6,779 km',
+        orbitalSpeed: '24.07 km/s'
+      }
+    };
+    
+    function resizeCanvas() {
+      canvas.width = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+    }
+    
+    function createStars() {
+      const container = document.getElementById('canvas-container');
+      for (let i = 0; i < 100; i++) {
+        const star = document.createElement('div');
+        star.className = 'star';
+        const size = Math.random() * 2 + 1;
+        star.style.width = size + 'px';
+        star.style.height = size + 'px';
+        star.style.left = Math.random() * 100 + '%';
+        star.style.top = Math.random() * 100 + '%';
+        star.style.animationDelay = Math.random() * 3 + 's';
+        container.appendChild(star);
+      }
+    }
+    
+    function drawOrbit(centerX, centerY, radius) {
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(160, 160, 255, 0.2)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+    
+    function drawBody(x, y, radius, color, name) {
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      const gradient = ctx.createRadialGradient(x - radius/3, y - radius/3, 0, x, y, radius);
+      gradient.addColorStop(0, color);
+      gradient.addColorStop(1, shadeColor(color, -40));
+      ctx.fillStyle = gradient;
+      ctx.fill();
+      
+      if (name === 'Sun') {
+        ctx.shadowBlur = 30;
+        ctx.shadowColor = color;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+      
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+    
+    function shadeColor(color, percent) {
+      const num = parseInt(color.replace("#",""), 16);
+      const amt = Math.round(2.55 * percent);
+      const R = (num >> 16) + amt;
+      const G = (num >> 8 & 0x00FF) + amt;
+      const B = (num & 0x0000FF) + amt;
+      return "#" + (0x1000000 + (R<255?R<1?0:R:255)*0x10000 +
+        (G<255?G<1?0:G:255)*0x100 + (B<255?B<1?0:B:255))
+        .toString(16).slice(1);
+    }
+    
+    function updatePositions() {
+      if (!isPaused) {
+        for (const key in celestialBodies) {
+          if (key !== 'sun' && celestialBodies[key].speed) {
+            celestialBodies[key].angle += celestialBodies[key].speed * timeScale;
+          }
+        }
+      }
+    }
+    
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
+      
+      drawOrbit(centerX, centerY, celestialBodies.earth.distance);
+      drawOrbit(centerX, centerY, celestialBodies.mars.distance);
+      
+      drawBody(centerX, centerY, celestialBodies.sun.radius, celestialBodies.sun.color, 'Sun');
+      
+      const earthX = centerX + Math.cos(celestialBodies.earth.angle) * celestialBodies.earth.distance;
+      const earthY = centerY + Math.sin(celestialBodies.earth.angle) * celestialBodies.earth.distance;
+      drawBody(earthX, earthY, celestialBodies.earth.radius, celestialBodies.earth.color, 'Earth');
+      
+      drawOrbit(earthX, earthY, celestialBodies.moon.distance);
+      const moonX = earthX + Math.cos(celestialBodies.moon.angle) * celestialBodies.moon.distance;
+      const moonY = earthY + Math.sin(celestialBodies.moon.angle) * celestialBodies.moon.distance;
+      drawBody(moonX, moonY, celestialBodies.moon.radius, celestialBodies.moon.color, 'Moon');
+      
+      const marsX = centerX + Math.cos(celestialBodies.mars.angle) * celestialBodies.mars.distance;
+      const marsY = centerY + Math.sin(celestialBodies.mars.angle) * celestialBodies.mars.distance;
+      drawBody(marsX, marsY, celestialBodies.mars.radius, celestialBodies.mars.color, 'Mars');
+      
+      updateInfo();
+    }
+    
+    function updateInfo() {
+      const body = celestialBodies[selectedBody];
+      if (body) {
+        const degrees = ((body.angle * 180 / Math.PI) % 360).toFixed(1);
+        document.getElementById('progress').textContent = degrees + '°';
+      }
+    }
+    
+    function animate() {
+      updatePositions();
+      draw();
+      animationId = requestAnimationFrame(animate);
+    }
+    
+    function selectBody(bodyKey) {
+      selectedBody = bodyKey;
+      const body = celestialBodies[bodyKey];
+      
+      document.querySelectorAll('.control-btn').forEach(btn => {
+        if (btn.dataset.body === bodyKey) {
+          btn.classList.add('active');
+        } else if (btn.dataset.body) {
+          btn.classList.remove('active');
+        }
+      });
+      
+      document.getElementById('body-name').textContent = body.name;
+      document.getElementById('body-description').textContent = body.description;
+      document.getElementById('distance').textContent = body.realDistance;
+      document.getElementById('period').textContent = body.period;
+      document.getElementById('diameter').textContent = body.diameter;
+      document.getElementById('speed').textContent = body.orbitalSpeed;
+    }
+    
+    async function onConfigChange(config) {
+      const baseFont = config.font_family || defaultConfig.font_family;
+      const baseFontStack = 'Tahoma, Geneva, Verdana, sans-serif';
+      const fontSize = config.font_size || defaultConfig.font_size;
+      
+      document.body.style.fontFamily = `${baseFont}, ${baseFontStack}`;
+      
+      const appContainer = document.getElementById('app-container');
+      appContainer.style.background = `radial-gradient(ellipse at center, ${config.secondary_color || defaultConfig.secondary_color} 0%, ${config.background_color || defaultConfig.background_color} 100%)`;
+      
+      const title = document.getElementById('title');
+      title.textContent = config.title_text || defaultConfig.title_text;
+      title.style.color = config.text_color || defaultConfig.text_color;
+      title.style.fontSize = `${fontSize * 2}px`;
+      
+      const subtitle = document.getElementById('subtitle');
+      subtitle.textContent = config.subtitle_text || defaultConfig.subtitle_text;
+      subtitle.style.color = config.accent_color || defaultConfig.accent_color;
+      subtitle.style.fontSize = `${fontSize}px`;
+      
+      const controlBtns = document.querySelectorAll('.control-btn');
+      controlBtns.forEach(btn => {
+        btn.style.background = `linear-gradient(135deg, ${config.primary_color || defaultConfig.primary_color} 0%, ${shadeColor(config.primary_color || defaultConfig.primary_color, -20)} 100%)`;
+        btn.style.fontSize = `${fontSize * 0.875}px`;
+      });
+      
+      const infoPanel = document.getElementById('info-panel');
+      infoPanel.style.background = `rgba(26, 26, 46, 0.9)`;
+      infoPanel.style.color = config.text_color || defaultConfig.text_color;
+      
+      const infoPanelH3 = infoPanel.querySelector('h3');
+      infoPanelH3.style.color = config.accent_color || defaultConfig.accent_color;
+      infoPanelH3.style.fontSize = `${fontSize * 1.25}px`;
+      
+      const infoPanelPs = infoPanel.querySelectorAll('p');
+      infoPanelPs.forEach(p => {
+        p.style.fontSize = `${fontSize * 0.875}px`;
+        p.style.color = config.text_color || defaultConfig.text_color;
+      });
+      
+      const infoLabels = document.querySelectorAll('.info-label');
+      infoLabels.forEach(label => {
+        label.style.color = config.accent_color || defaultConfig.accent_color;
+      });
+      
+      const speedControl = document.getElementById('speed-control');
+      speedControl.style.background = `rgba(26, 26, 46, 0.9)`;
+      speedControl.style.color = config.text_color || defaultConfig.text_color;
+      
+      const speedLabel = speedControl.querySelector('label');
+      speedLabel.style.color = config.accent_color || defaultConfig.accent_color;
+      speedLabel.style.fontSize = `${fontSize * 0.875}px`;
+      
+      const speedValue = document.getElementById('speed-value');
+      speedValue.style.fontSize = `${fontSize * 0.875}px`;
+      speedValue.style.color = config.text_color || defaultConfig.text_color;
+      
+      celestialBodies.earth.description = config.earth_info || defaultConfig.earth_info;
+      celestialBodies.moon.description = config.moon_info || defaultConfig.moon_info;
+      celestialBodies.mars.description = config.mars_info || defaultConfig.mars_info;
+      
+      if (selectedBody) {
+        selectBody(selectedBody);
+      }
+    }
+    
+    function mapToCapabilities(config) {
+      return {
+        recolorables: [
+          {
+            get: () => config.background_color || defaultConfig.background_color,
+            set: (value) => {
+              config.background_color = value;
+              window.elementSdk.setConfig({ background_color: value });
+            }
+          },
+          {
+            get: () => config.primary_color || defaultConfig.primary_color,
+            set: (value) => {
+              config.primary_color = value;
+              window.elementSdk.setConfig({ primary_color: value });
+            }
+          },
+          {
+            get: () => config.secondary_color || defaultConfig.secondary_color,
+            set: (value) => {
+              config.secondary_color = value;
+              window.elementSdk.setConfig({ secondary_color: value });
+            }
+          },
+          {
+            get: () => config.text_color || defaultConfig.text_color,
+            set: (value) => {
+              config.text_color = value;
+              window.elementSdk.setConfig({ text_color: value });
+            }
+          },
+          {
+            get: () => config.accent_color || defaultConfig.accent_color,
+            set: (value) => {
+              config.accent_color = value;
+              window.elementSdk.setConfig({ accent_color: value });
+            }
+          }
+        ],
+        borderables: [],
+        fontEditable: {
+          get: () => config.font_family || defaultConfig.font_family,
+          set: (value) => {
+            config.font_family = value;
+            window.elementSdk.setConfig({ font_family: value });
+          }
+        },
+        fontSizeable: {
+          get: () => config.font_size || defaultConfig.font_size,
+          set: (value) => {
+            config.font_size = value;
+            window.elementSdk.setConfig({ font_size: value });
+          }
+        }
+      };
+    }
+    
+    function mapToEditPanelValues(config) {
+      return new Map([
+        ["title_text", config.title_text || defaultConfig.title_text],
+        ["subtitle_text", config.subtitle_text || defaultConfig.subtitle_text],
+        ["earth_info", config.earth_info || defaultConfig.earth_info],
+        ["moon_info", config.moon_info || defaultConfig.moon_info],
+        ["mars_info", config.mars_info || defaultConfig.mars_info]
+      ]);
+    }
+    
+    window.addEventListener('load', async () => {
+      if (window.elementSdk) {
+        await window.elementSdk.init({
+          defaultConfig,
+          onConfigChange,
+          mapToCapabilities,
+          mapToEditPanelValues
+        });
+      }
+      
+      resizeCanvas();
+      createStars();
+      selectBody('earth');
+      animate();
+      
+      window.addEventListener('resize', () => {
+        resizeCanvas();
+        draw();
+      });
+      
+      document.querySelectorAll('.control-btn[data-body]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          selectBody(btn.dataset.body);
+        });
+      });
+      
+      document.getElementById('pause-btn').addEventListener('click', (e) => {
+        isPaused = !isPaused;
+        e.target.textContent = isPaused ? '▶ Play' : '⏸ Pause';
+      });
+      
+      const speedSlider = document.getElementById('speed-slider');
+      speedSlider.addEventListener('input', (e) => {
+        timeScale = parseFloat(e.target.value);
+        document.getElementById('speed-value').textContent = timeScale.toFixed(1) + 'x';
+      });
+    });
+  </script>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'99cf2ea700748a59',t:'MTc2Mjg3ODcxMS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(windo
